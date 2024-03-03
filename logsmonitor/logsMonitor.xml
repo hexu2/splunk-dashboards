@@ -1,0 +1,192 @@
+<dashboard>
+    <label>日志快速展示</label>
+    <row>
+        <panel>
+            <table>
+                <title>市场刷新状态</title>
+                <search>
+                    <query>| makeresults
+                        | eval region=if(market_code_token=="APAC_code1" OR market_code_token=="APAC_code2","APAC","EMEA")
+                        | eval refresh_status=if(index=$index_token$ sourcetype=your_sourcetype log_level=error log_file=$log_file_token$ earliest=-24h, "Yes", "No")
+                        | table region market_code_token refresh_status
+                    </query>
+                    <earliest>-24h</earliest>
+                    <latest>now</latest>
+                </search>
+                <option name="drilldown">none</option>
+                <option name="dataOverlayMode">none</option>
+                <option name="wrap">true</option>
+                <format type="html">
+                    <![CDATA[
+            <style>
+              table {
+                width: 100%;
+                border-collapse: collapse;
+              }
+              th, td {
+                border: 1px solid #dddddd;
+                text-align: left;
+                padding: 8px;
+              }
+              tr:nth-child(even) {
+                background-color: #f2f2f2;
+              }
+              .yes {
+                background-color: #8bc34a;
+              }
+              .no {
+                background-color: #9e9e9e;
+              }
+            </style>
+            <table>
+              <tr>
+                <th>Region</th>
+                <th>Market</th>
+                <th>Refresh Status</th>
+              </tr>
+              $table_row$
+            </table>
+          ]]>
+                </format>
+            </table>
+        </panel>
+    </row>
+    <row>
+        <panel>
+            <title>选择地域</title>
+            <input type="dropdown" token="region_token">
+                <label>选择地域</label>
+                <choice value="APAC">APAC</choice>
+                <choice value="EMEA">EMEA</choice>
+            </input>
+        </panel>
+    </row>
+    <row id="market_code_row" depends="$region_token$">
+        <panel>
+            <title>选择 Market Code</title>
+            <input type="dropdown" token="market_code_token">
+                <label>选择 Market Code</label>
+                <choice value="APAC_code1" depends="$region_token$">APAC Code 1</choice>
+                <choice value="APAC_code2" depends="$region_token$">APAC Code 2</choice>
+                <choice value="EMEA_code1" depends="$region_token$">EMEA Code 1</choice>
+                <choice value="EMEA_code2" depends="$region_token$">EMEA Code 2</choice>
+                <!-- 添加更多选项 -->
+            </input>
+        </panel>
+    </row>
+    <row id="log_file_row" depends="$market_code_token$">
+        <panel>
+            <title>选择日志文件</title>
+            <input type="dropdown" token="log_file_token">
+                <label>选择日志文件</label>
+                <choice value="history.log" depends="$market_code_token$">History.log</choice>
+                <choice value="screen.log" depends="$market_code_token$">Screen.log</choice>
+                <choice value="sql.log" depends="$market_code_token$">Sql.log</choice>
+                <!-- 添加更多选项 -->
+            </input>
+        </panel>
+    </row>
+    <row id="time_range_row" depends="$log_file_token$">
+        <panel>
+            <title>选择时间范围</title>
+            <input type="dropdown" token="time_range_token">
+                <label>选择时间范围</label>
+                <choice value="-24h">过去24小时</choice>
+                <choice value="-7d">过去7天</choice>
+                <choice value="-1mon">过去一个月</choice>
+                <!-- 添加更多选项 -->
+            </input>
+        </panel>
+    </row>
+    <row>
+        <panel>
+            <title>提交</title>
+            <submit>
+                <label>提交</label>
+            </submit>
+        </panel>
+    </row>
+    <row>
+        <panel>
+            <title>错误日志</title>
+            <search id="search1">
+                <query>index=$index_token$ sourcetype=your_sourcetype log_level=error earliest=-24h | timechart count by host</query>
+                <earliest>-24h@h</earliest>
+                <latest>now</latest>
+            </search>
+            <chart>
+                <title>最近24小时错误日志分布</title>
+                <type>bar</type>
+                <option name="charting.axisTitleX.visibility">collapsed</option>
+                <option name="charting.axisTitleY.visibility">collapsed</option>
+                <option name="charting.legend.placement">bottom</option>
+            </chart>
+        </panel>
+    </row>
+    <row>
+        <panel>
+            <title>日志趋势</title>
+            <search>
+                <query>index=$index_token$ sourcetype=your_sourcetype earliest=-24h | timechart count span=1h</query>
+                <earliest>-7d@d</earliest>
+                <latest>now</latest>
+            </search>
+            <chart>
+                <title>最近7天日志趋势</title>
+                <type>line</type>
+                <option name="charting.axisTitleX.visibility">collapsed</option>
+                <option name="charting.axisTitleY.visibility">collapsed</option>
+                <option name="charting.legend.placement">bottom</option>
+            </chart>
+        </panel>
+    </row>
+    <row>
+        <panel>
+            <title>日志内容</title>
+            <html>
+                <search id="search2">
+                    <query>| makeresults
+                        | eval log_content=if(index=$index_token$ sourcetype=your_sourcetype log_file=$log_file_token$ earliest=-24h, "Your log content here", "No log content available")
+                        | table log_content
+                    </query>
+                </search>
+                <option name="drilldown">none</option>
+                <option name="dataOverlayMode">none</option>
+                <option name="wrap">true</option>
+                <format type="html">
+                    <![CDATA[
+            <div>$log_content$</div>
+          ]]>
+                </format>
+            </html>
+        </panel>
+    </row>
+    <row>
+        <panel>
+            <title>提交</title>
+            <submit>
+                <label>提交</label>
+            </submit>
+        </panel>
+    </row>
+
+    <initialization>
+        <script>
+            require(['jquery'], function($) {
+            $(document).on('click', 'input[type=submit]', function() {
+            var timeRangeToken = mvc.Components.get('time_range_token');
+            var timeRangeValue = timeRangeToken.val();
+            var earliest = timeRangeValue;
+
+            var searchJob = mvc.Components.getInstance('search1');
+            searchJob.settings.set('search', 'index=$index_token$ sourcetype=your_sourcetype log_level=error earliest=' + earliest + ' | timechart count by host');
+            searchJob.startSearch();
+
+            var logContentSearchJob = mvc.Components.getInstance('search2');
+            logContentSearchJob.settings.set('search', '| makeresults | eval log_content=if(index=$index_token$ sourcetype=your_sourcetype log_file=$log_file_token$ earliest=' + earliest + ', "Your log content here", "No log content available") | table log_content');
+            logContentSearchJob.startSearch();
+            });
+            });
+        </script>
+    </initialization>
+</dashboard>
